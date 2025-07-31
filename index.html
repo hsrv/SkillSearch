@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>LoL スキル名ビューア</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body { background: #1a202c; color: #fff; font-family: system-ui, sans-serif; margin:0; min-height:100vh;}
+    h1 { text-align:center; margin: 1em 0 0.5em;}
+    .container { display: grid; grid-template-columns: 1fr 1fr; gap: 2em; max-width: 900px; margin: 0 auto;}
+    .champ-slot { background: #2d3748; padding: 1em; border-radius: 1em; margin-bottom: 1em; }
+    .champ-slot input { width: 100%; padding: 6px; border-radius: 5px; border: none; margin-bottom: 8px; }
+    .suggest { background:#4a5568; margin-bottom:2px; padding:4px; border-radius:4px; cursor:pointer;}
+    .suggest:hover { background:#718096;}
+    .skill-block { margin-top: 0.5em;}
+    .skill-block strong { min-width: 4em; display:inline-block;}
+    @media(max-width:700px) {
+      .container { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>LoL スキル名ビューア（10枠同時）</h1>
+  <div class="container" id="main"></div>
+
+<script>
+const NUM_SLOTS = 10;
+let championData = [];
+const main = document.getElementById('main');
+
+// チャンピオンデータをロード
+fetch('champions.json')
+  .then(res => res.json())
+  .then(data => {
+    championData = data;
+    initUI();
+  });
+
+// UI構築
+function initUI() {
+  for(let i=0; i<NUM_SLOTS; i++) {
+    const div = document.createElement('div');
+    div.className = "champ-slot";
+    div.innerHTML = `
+      <div style="font-size:13px;color:#ccc;">スロット${i+1}</div>
+      <input type="text" placeholder="チャンピオン名（日本語 or 英語）">
+      <div class="suggest-list"></div>
+      <div class="skill-block"></div>
+    `;
+    main.appendChild(div);
+    setupSlot(div, i);
+  }
+}
+
+// 各スロットの機能
+function setupSlot(div, idx) {
+  const input = div.querySelector('input');
+  const suggestList = div.querySelector('.suggest-list');
+  const skillBlock = div.querySelector('.skill-block');
+
+  input.addEventListener('input', function() {
+    const val = this.value.trim().toLowerCase();
+    if (!val) {
+      suggestList.innerHTML = "";
+      skillBlock.innerHTML = "";
+      return;
+    }
+    // サジェスト
+    const suggests = championData.filter(c =>
+      c.jaName.includes(val) ||
+      c.key.toLowerCase().includes(val)
+    ).slice(0,8);
+    suggestList.innerHTML = "";
+    suggests.forEach(c => {
+      const s = document.createElement('div');
+      s.className = "suggest";
+      s.textContent = `${c.jaName} (${c.key})`;
+      s.onclick = () => {
+        input.value = c.jaName;
+        suggestList.innerHTML = "";
+        showSkills(skillBlock, c);
+      };
+      suggestList.appendChild(s);
+    });
+    // 入力がチャンピオン名と完全一致なら自動表示
+    const found = championData.find(c => c.jaName === input.value || c.key.toLowerCase() === input.value.toLowerCase());
+    if (found) showSkills(skillBlock, found);
+    else if (!suggests.length) skillBlock.innerHTML = "";
+  });
+
+  // フォーカス外れたらサジェスト隠す
+  input.addEventListener('blur', () => setTimeout(() => suggestList.innerHTML="", 120));
+}
+
+function showSkills(block, champ) {
+  block.innerHTML = `
+    <div><strong>パッシブ:</strong> ${champ.passive}</div>
+    <div><strong>Q:</strong> ${champ.Q}</div>
+    <div><strong>W:</strong> ${champ.W}</div>
+    <div><strong>E:</strong> ${champ.E}</div>
+    <div><strong>R:</strong> ${champ.R}</div>
+  `;
+}
+</script>
+</body>
+</html>
